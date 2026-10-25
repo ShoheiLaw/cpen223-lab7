@@ -1,6 +1,6 @@
 ﻿// Lab 7
-// Student name:
-// Student number:
+// Student name: Shohei Law
+// Student number: 12133013
 
 using System;
 using System.Collections.Generic;
