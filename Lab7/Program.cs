@@ -7,61 +7,73 @@ using System.Collections.Generic;
 
 Console.WriteLine("CPEN223 Lab 7");
 
-static int passed = 0, failed = 0;
-
-static void CheckList(string name, List<double> actual, params double[] expected)
+// Helper for the cases that should throw
+void ExpectThrow(Action action)
 {
-    bool ok = actual != null && actual.Count == expected.Length;
-    for (int i = 0; ok && i < expected.Length; i++)
-        if (Math.Abs(actual[i] - expected[i]) > 1e-9) ok = false;
-    Report(name, ok);
+    try { action(); Console.WriteLine("NO EXCEPTION (should have thrown)"); }
+    catch (ArgumentException) { Console.WriteLine("ArgumentException (correct)"); }
 }
 
-static void CheckValue(string name, double actual, double expected)
-{
-    Report(name, Math.Abs(actual - expected) < 1e-6);
-}
+// Map
+Console.WriteLine(string.Join(", ", EmgAnalyzer.Map(new List<double>() { 1, 2, 3 }, x => x * x)));
+// 1, 4, 9
 
-static void CheckThrows(string name, Action action)
-{
-    try { action(); Report(name, false); }
-    catch (ArgumentException e) when (e.GetType() == typeof(ArgumentException)) { Report(name, true); }
-    catch { Report(name, false); }
-}
+Console.WriteLine(string.Join(", ", EmgAnalyzer.Map(new List<double>(), x => x * 2)));
+// (empty line)
 
-static void Report(string name, bool ok)
-{
-    if (ok) passed++; else { failed++; Console.WriteLine("FAILED: " + name); }
-}
+// Filter
+Console.WriteLine(string.Join(", ", EmgAnalyzer.Filter(new List<double>() { -2, 0, 3, 5 }, x => x > 0)));
+// 3, 5
 
-static void Main()
-{
-    CheckList("Map squares", EmgAnalyzer.Map(new List<double>() { 1, 2, 3 }, x => x * x), 1, 4, 9);
-    CheckList("Map empty", EmgAnalyzer.Map(new List<double>(), x => x * 2));
-    CheckThrows("Map null list", () => EmgAnalyzer.Map(null, x => x));
+Console.WriteLine(string.Join(", ", EmgAnalyzer.Filter(new List<double>() { -1 }, x => x > 0)));
+// (empty line)
 
-    CheckList("Filter positives", EmgAnalyzer.Filter(new List<double>() { -2, 0, 3, 5 }, x => x > 0), 3, 5);
-    CheckList("Filter none match", EmgAnalyzer.Filter(new List<double>() { 1, 2, 3 }, x => x > 5));
-    CheckThrows("Filter null keep", () => EmgAnalyzer.Filter(new List<double>() { 1 }, null));
+// Reduce
+Console.WriteLine(EmgAnalyzer.Reduce(new List<double>() { 1, 2, 3, 4 }, 0, (sum, x) => sum + x));
+// 10
 
-    CheckValue("Reduce sum", EmgAnalyzer.Reduce(new List<double>() { 1, 2, 3, 4 }, 0, (s, x) => s + x), 10);
-    CheckValue("Reduce product", EmgAnalyzer.Reduce(new List<double>() { 2, 3, 4 }, 1.0, (r, x) => r * x), 24);
-    CheckValue("Reduce empty", EmgAnalyzer.Reduce(new List<double>(), 7.0, (s, x) => s + x), 7);
+Console.WriteLine(EmgAnalyzer.Reduce(new List<double>() { 2, 3, 4 }, 1.0, (result, x) => result * x));
+// 24
 
-    CheckList("Clean doc example",
-        EmgAnalyzer.CleanAndCalibrate(new List<double>() { 0.0, 2.0, double.NaN, 3.0, 100.0 }, 1, 5, 1, 2), 2, 4);
-    CheckList("Clean inclusive bounds",
-        EmgAnalyzer.CleanAndCalibrate(new List<double>() { 1.0, 5.0 }, 1, 5, 0, 1), 1, 5);
-    CheckThrows("Clean NaN offset",
-        () => EmgAnalyzer.CleanAndCalibrate(new List<double>() { 2.0 }, 1, 5, double.NaN, 1));
-    CheckThrows("Clean min > max",
-        () => EmgAnalyzer.CleanAndCalibrate(new List<double>() { 2.0 }, 5, 1, 0, 1));
-    CheckThrows("Clean gain <= 0",
-        () => EmgAnalyzer.CleanAndCalibrate(new List<double>() { 2.0 }, 1, 5, 0, 0));
+Console.WriteLine(EmgAnalyzer.Reduce(new List<double>(), 7.0, (sum, x) => sum + x));
+// 7
 
-    CheckValue("RMS doc example", EmgAnalyzer.RootMeanSquare(new List<double>() { 3.0, 4.0 }), 3.5355339);
-    CheckThrows("RMS empty", () => EmgAnalyzer.RootMeanSquare(new List<double>()));
+// CleanAndCalibrate
+Console.WriteLine(string.Join(", ", EmgAnalyzer.CleanAndCalibrate(
+    new List<double>() { 0.0, 2.0, double.NaN, 3.0, 100.0 }, 1.0, 5.0, 1.0, 2.0)));
+// 2, 4
 
+Console.WriteLine(string.Join(", ", EmgAnalyzer.CleanAndCalibrate(
+    new List<double>() { 2.0, double.NaN, 2.5, 100.0, 3.0 }, 1.0, 5.0, 1.0, 2.0)));
+// 2, 3, 4
+
+Console.WriteLine(string.Join(", ", EmgAnalyzer.CleanAndCalibrate(
+    new List<double>() { 1.0, 5.0 }, 1.0, 5.0, 0.0, 1.0)));
+// 1, 5 (inclusive bounds)
+
+ExpectThrow(() => EmgAnalyzer.CleanAndCalibrate(
+    new List<double>() { 2.0 }, 1.0, 5.0, double.NaN, 1.0));
+// ArgumentException
+
+// RootMeanSquare
+Console.WriteLine(EmgAnalyzer.RootMeanSquare(new List<double>() { 3.0, 4.0 }));
+// approximately 3.5355339
+
+ExpectThrow(() => EmgAnalyzer.RootMeanSquare(new List<double>() { 1.0, double.NaN }));
+// ArgumentException
+
+// FractionAboveThreshold
+Console.WriteLine(EmgAnalyzer.FractionAboveThreshold(new List<double>() { -5, 1, 6, 2 }, 4));
+// 0.5
+
+Console.WriteLine(EmgAnalyzer.FractionAboveThreshold(new List<double>() { 10, 20, 30, 1 }, 4));
+// 0.75
+
+Console.WriteLine(EmgAnalyzer.FractionAboveThreshold(new List<double>() { 4, -4, 3 }, 4));
+// 0.6666666666666666 (equal to threshold counts)
+
+ExpectThrow(() => EmgAnalyzer.FractionAboveThreshold(new List<double>() { 1, 2 }, double.NaN));
+// ArgumentException
 //Do not change the program skeleton: keep the class name, method names,
 //parameters, and return types exactly as given.
 //You may add private helper methods.
@@ -156,9 +168,11 @@ public static class EmgAnalyzer
         if (rawSamples == null){
             throw new ArgumentException("Raw sample data must be a valid input.");
         }
-        if (double.IsInfinity(minimum)||double.IsInfinity(maximum)||double.IsInfinity(offset)||double.IsInfinity(gain)){
-            throw new ArgumentException("Input parameters cannot be infinite values.");
+        if (!double.IsFinite(minimum) || !double.IsFinite(maximum) || !double.IsFinite(offset) || !double.IsFinite(gain))
+        {
+            throw new ArgumentException("minimum, maximum, offset, and gain must be finite.");
         }
+        
         if(minimum>maximum){
             throw new ArgumentException("Maximum value must be greater than minimum.");
         }
@@ -227,7 +241,7 @@ public static class EmgAnalyzer
             throw new ArgumentException("Threshold value cannot be infinite or negative.");
         }
 
-        double tValues = Reduce(samples, 0.0, (result, x) => Math.Abs(x) > threshold ? result+1.0: result +0.0);
+        double tValues = Reduce(samples, 0.0, (result, x) => Math.Abs(x) >= threshold ? result+1.0: result +0.0);
         double sampleCount = samples.Count;
         double finalValue = tValues/sampleCount;
 
